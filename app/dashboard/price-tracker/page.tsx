@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
-type PriceEntry = { invoice_date: string; unit_price: number }
-type TrackedItem = { item_name: string; category: string; prices: PriceEntry[]; current: number; previous: number; change: number }
+type PriceEntry = { invoice_date: string; unit_price: number; unit_qty: number; case_qty: number }
+type TrackedItem = { item_name: string; category: string; prices: PriceEntry[]; current: number; previous: number; change: number; unit: string }
 
 export default function PriceTrackerPage() {
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
@@ -23,7 +23,7 @@ export default function PriceTrackerPage() {
   useEffect(() => {
     if (!restaurantId) return
     supabase.from('invoice_lines')
-      .select('item_name, category, unit_price, invoice_headers!header_id(invoice_date)')
+      .select('item_name, category, unit_price, unit_qty, case_qty, invoice_headers!header_id(invoice_date)')
       .eq('restaurant_id', restaurantId)
       .not('unit_price', 'is', null)
       .gt('unit_price', 0)
@@ -36,7 +36,7 @@ export default function PriceTrackerPage() {
           const date = l.invoice_headers?.invoice_date
           if (!date) return
           if (!map[l.item_name]) map[l.item_name] = { category: l.category || 'Other', prices: [] }
-          map[l.item_name].prices.push({ invoice_date: date, unit_price: l.unit_price })
+          map[l.item_name].prices.push({ invoice_date: date, unit_price: l.unit_price, unit_qty: l.unit_qty ?? 0, case_qty: l.case_qty ?? 0 })
         })
 
         const tracked: TrackedItem[] = Object.entries(map)
@@ -46,7 +46,9 @@ export default function PriceTrackerPage() {
             const current = sorted[sorted.length - 1].unit_price
             const previous = sorted[sorted.length - 2].unit_price
             const change = ((current - previous) / previous) * 100
-            return { item_name, category, prices: sorted, current, previous, change }
+            const last = sorted[sorted.length - 1]
+            const unit = (last.unit_qty ?? 0) > 1 ? '/lb' : (last.case_qty ?? 0) > 0 ? '/case' : '/unit'
+            return { item_name, category, prices: sorted, current, previous, change, unit }
           })
           .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
 
@@ -83,14 +85,15 @@ export default function PriceTrackerPage() {
               <th className="text-left px-4 py-3">Category</th>
               <th className="text-right px-4 py-3">Previous</th>
               <th className="text-right px-4 py-3">Current</th>
+              <th className="text-right px-4 py-3">Unit</th>
               <th className="text-right px-4 py-3">Change</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} className="text-center py-8 text-gray-400">Loading...</td></tr>
+              <tr><td colSpan={6} className="text-center py-8 text-gray-400">Loading...</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={5} className="text-center py-8 text-gray-400">No price data available.</td></tr>
+              <tr><td colSpan={6} className="text-center py-8 text-gray-400">No price data available.</td></tr>
             ) : filtered.map(item => (
               <tr key={item.item_name} className="border-b last:border-0 hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium text-gray-900">{item.item_name}</td>
@@ -99,6 +102,7 @@ export default function PriceTrackerPage() {
                 </td>
                 <td className="px-4 py-3 text-right text-gray-500">${item.previous.toFixed(2)}</td>
                 <td className="px-4 py-3 text-right font-semibold text-gray-900">${item.current.toFixed(2)}</td>
+                <td className="px-4 py-3 text-right text-gray-400 text-xs">{item.unit}</td>
                 <td className="px-4 py-3 text-right">
                   <span className={`flex items-center justify-end gap-1 font-semibold ${item.change > 0 ? 'text-red-500' : item.change < 0 ? 'text-green-500' : 'text-gray-400'}`}>
                     {item.change > 0 ? <TrendingUp size={14} /> : item.change < 0 ? <TrendingDown size={14} /> : <Minus size={14} />}
