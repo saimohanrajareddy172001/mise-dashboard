@@ -27,6 +27,7 @@ export default function PriceTrackerPage() {
       .eq('restaurant_id', restaurantId)
       .not('unit_price', 'is', null)
       .gt('unit_price', 0)
+      .gt('total', 0)
       .then(({ data }) => {
         if (!data) return
         const map: Record<string, { category: string; prices: PriceEntry[] }> = {}
