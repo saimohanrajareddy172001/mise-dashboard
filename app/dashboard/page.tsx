@@ -35,14 +35,18 @@ export default function DashboardPage() {
     loadData()
   }, [restaurantId, range, customStart, customEnd])
 
+  function localDate(d: Date) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+
   function getDateRange() {
     const now = new Date()
     if (range === 'weekly') {
       const start = new Date(now); start.setDate(now.getDate() - 7)
-      return { start: start.toISOString().split('T')[0], end: now.toISOString().split('T')[0] }
+      return { start: localDate(start), end: localDate(now) }
     }
     if (range === 'monthly') {
-      return { start: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`, end: now.toISOString().split('T')[0] }
+      return { start: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`, end: localDate(now) }
     }
     return { start: customStart, end: customEnd }
   }
