@@ -13,6 +13,7 @@ export default function DashboardPage() {
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
   const [totalSpend, setTotalSpend] = useState(0)
+  const [prevSpend, setPrevSpend] = useState<number | null>(null)
   const [invoiceCount, setInvoiceCount] = useState(0)
   const [topCategory, setTopCategory] = useState('-')
   const [categoryData, setCategoryData] = useState<CategorySpend[]>([])
@@ -51,6 +52,21 @@ export default function DashboardPage() {
     return { start: customStart, end: customEnd }
   }
 
+  function getPrevDateRange() {
+    const now = new Date()
+    if (range === 'weekly') {
+      const end = new Date(now); end.setDate(now.getDate() - 7)
+      const start = new Date(now); start.setDate(now.getDate() - 14)
+      return { start: localDate(start), end: localDate(end) }
+    }
+    if (range === 'monthly') {
+      const d = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const lastDay = new Date(now.getFullYear(), now.getMonth(), 0)
+      return { start: localDate(d), end: localDate(lastDay) }
+    }
+    return null
+  }
+
   async function loadData() {
     const { start, end } = getDateRange()
     if (!start || !end) return
@@ -68,6 +84,19 @@ export default function DashboardPage() {
     setTotalSpend(total)
     setInvoiceCount(headers.length)
     setRecentInvoices(headers.slice(0, 8))
+
+    const prev = getPrevDateRange()
+    if (prev && prev.start && prev.end) {
+      const { data: prevHeaders } = await supabase
+        .from('invoice_headers')
+        .select('total')
+        .eq('restaurant_id', restaurantId)
+        .gte('invoice_date', prev.start)
+        .lte('invoice_date', prev.end)
+      setPrevSpend(prevHeaders ? prevHeaders.reduce((s, h) => s + (h.total || 0), 0) : null)
+    } else {
+      setPrevSpend(null)
+    }
 
     const headerIds = headers.map(h => h.id)
     if (headerIds.length > 0) {
@@ -118,8 +147,22 @@ export default function DashboardPage() {
       )}
 
       <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="bg-white rounded-xl border p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <DollarSign size={16} className="text-amber-500" />
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Total Spend</span>
+          </div>
+          <div className="text-2xl font-bold text-gray-900">${totalSpend.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-xs text-gray-400">{invoiceCount} invoices</span>
+            {prevSpend !== null && prevSpend > 0 && (
+              <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${totalSpend > prevSpend ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-600'}`}>
+                {totalSpend > prevSpend ? '+' : ''}{(((totalSpend - prevSpend) / prevSpend) * 100).toFixed(1)}% vs prev
+              </span>
+            )}
+          </div>
+        </div>
         {[
-          { label: 'Total Spend', value: `$${totalSpend.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, sub: `${invoiceCount} invoices`, icon: DollarSign },
           { label: 'Avg per Invoice', value: invoiceCount ? `$${(totalSpend / invoiceCount).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '$0.00', sub: 'this period', icon: TrendingUp },
           { label: 'Top Category', value: topCategory, sub: 'by spend', icon: ShoppingBag },
         ].map(({ label, value, sub, icon: Icon }) => (

@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Search } from 'lucide-react'
+import { Search, Download } from 'lucide-react'
 
 type Invoice = { id: string; invoice_date: string; invoice_number: string; vendor: string; total: number }
 
@@ -36,10 +36,39 @@ export default function InvoicesPage() {
     inv.invoice_date?.includes(search)
   )
 
+  async function exportCSV() {
+    if (!restaurantId) return
+    const { data: lines } = await supabase
+      .from('invoice_lines')
+      .select('invoice_date, item_name, category, unit_qty, case_qty, unit_price, total, invoice_headers!header_id(invoice_number, vendor)')
+      .eq('restaurant_id', restaurantId)
+      .order('invoice_date', { ascending: false })
+    if (!lines) return
+    const rows = [
+      ['Date', 'Invoice #', 'Vendor', 'Item', 'Category', 'Unit Qty', 'Case Qty', 'Unit Price', 'Total'],
+      ...lines.map((l: any) => [
+        l.invoice_date, l.invoice_headers?.invoice_number, l.invoice_headers?.vendor,
+        l.item_name, l.category, l.unit_qty, l.case_qty, l.unit_price, l.total
+      ])
+    ]
+    const csv = rows.map(r => r.map((v: any) => `"${v ?? ''}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob)
+    a.download = `invoices-${new Date().toISOString().split('T')[0]}.csv`; a.click()
+  }
+
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Invoices</h1>
-      <p className="text-gray-500 text-sm mb-6">All invoices — click to see line items.</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">Invoices</h1>
+          <p className="text-gray-500 text-sm">All invoices — click to see line items.</p>
+        </div>
+        <button onClick={exportCSV}
+          className="flex items-center gap-2 px-4 py-2 bg-white border rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition">
+          <Download size={14} /> Export CSV
+        </button>
+      </div>
 
       <div className="relative mb-4">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />

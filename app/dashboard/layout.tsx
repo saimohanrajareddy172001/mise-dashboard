@@ -3,13 +3,14 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { LayoutDashboard, FileText, ShoppingCart, TrendingUp, LogOut } from 'lucide-react'
+import { LayoutDashboard, FileText, ShoppingCart, TrendingUp, LogOut, Search } from 'lucide-react'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/invoices', label: 'Invoices', icon: FileText },
   { href: '/dashboard/most-purchased', label: 'Most Purchased', icon: ShoppingCart },
   { href: '/dashboard/price-tracker', label: 'Price Tracker', icon: TrendingUp },
+  { href: '/dashboard/search', label: 'Item Search', icon: Search },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
