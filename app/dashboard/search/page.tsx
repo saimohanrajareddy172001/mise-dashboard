@@ -5,6 +5,7 @@ import { Search } from 'lucide-react'
 
 type LineResult = {
   item_name: string
+  display_name: string
   category: string
   unit_price: number
   unit_qty: number
@@ -36,7 +37,7 @@ export default function SearchPage() {
     setSearched(true)
     const { data } = await supabase
       .from('invoice_lines')
-      .select('item_name, category, unit_price, unit_qty, case_qty, total, invoice_date, invoice_headers!header_id(invoice_number, vendor)')
+      .select('item_name, display_name, category, unit_price, unit_qty, case_qty, total, invoice_date, invoice_headers!header_id(invoice_number, vendor)')
       .eq('restaurant_id', restaurantId)
       .ilike('item_name', `%${query.trim()}%`)
       .gt('total', 0)
@@ -45,6 +46,7 @@ export default function SearchPage() {
     if (data) {
       setResults(data.map((r: any) => ({
         ...r,
+        display_name: r.display_name || r.item_name,
         invoice_number: r.invoice_headers?.invoice_number ?? '',
         vendor: r.invoice_headers?.vendor ?? '',
       })))
@@ -114,7 +116,7 @@ export default function SearchPage() {
                 <tr key={i} className="border-b last:border-0 hover:bg-gray-50">
                   <td className="px-4 py-3 text-gray-500">{r.invoice_date}</td>
                   <td className="px-4 py-3 text-gray-600">#{r.invoice_number}</td>
-                  <td className="px-4 py-3 font-medium text-gray-900">{r.item_name}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900">{r.display_name}</td>
                   <td className="px-4 py-3">
                     <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">{r.category}</span>
                   </td>

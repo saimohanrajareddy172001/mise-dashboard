@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
-type Item = { item_name: string; category: string; total_qty: number; total_spend: number; times_ordered: number }
+type Item = { item_name: string; display_name: string; category: string; total_qty: number; total_spend: number; times_ordered: number }
 
 export default function MostPurchasedPage() {
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
@@ -19,15 +19,16 @@ export default function MostPurchasedPage() {
 
   useEffect(() => {
     if (!restaurantId) return
-    supabase.from('invoice_lines').select('item_name, category, unit_qty, case_qty, total')
+    supabase.from('invoice_lines').select('item_name, display_name, category, unit_qty, case_qty, total')
       .eq('restaurant_id', restaurantId)
       .then(({ data }) => {
         if (!data) return
         const map: Record<string, Item> = {}
-        data.forEach(l => {
+        data.forEach((l: any) => {
           const key = l.item_name
           if (!key) return
-          if (!map[key]) map[key] = { item_name: key, category: l.category || 'Other', total_qty: 0, total_spend: 0, times_ordered: 0 }
+          const label = l.display_name || l.item_name
+          if (!map[key]) map[key] = { item_name: key, display_name: label, category: l.category || 'Other', total_qty: 0, total_spend: 0, times_ordered: 0 }
           map[key].total_qty += l.unit_qty || l.case_qty || 0
           map[key].total_spend += l.total || 0
           map[key].times_ordered += 1
@@ -60,7 +61,7 @@ export default function MostPurchasedPage() {
             ) : items.map((item, i) => (
               <tr key={item.item_name} className="border-b last:border-0 hover:bg-gray-50">
                 <td className="px-4 py-3 text-gray-400 font-mono">{i + 1}</td>
-                <td className="px-4 py-3 font-medium text-gray-900">{item.item_name}</td>
+                <td className="px-4 py-3 font-medium text-gray-900">{item.display_name}</td>
                 <td className="px-4 py-3">
                   <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">{item.category}</span>
                 </td>

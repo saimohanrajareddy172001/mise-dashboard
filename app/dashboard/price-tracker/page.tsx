@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
 type PriceEntry = { invoice_date: string; unit_price: number; unit_qty: number; case_qty: number }
-type TrackedItem = { item_name: string; category: string; prices: PriceEntry[]; current: number; previous: number; change: number; unit: string }
+type TrackedItem = { item_name: string; display_name: string; category: string; prices: PriceEntry[]; current: number; previous: number; change: number; unit: string }
 
 export default function PriceTrackerPage() {
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
@@ -23,32 +23,32 @@ export default function PriceTrackerPage() {
   useEffect(() => {
     if (!restaurantId) return
     supabase.from('invoice_lines')
-      .select('item_name, category, unit_price, unit_qty, case_qty, invoice_headers!header_id(invoice_date)')
+      .select('item_name, display_name, category, unit_price, unit_qty, case_qty, invoice_headers!header_id(invoice_date)')
       .eq('restaurant_id', restaurantId)
       .not('unit_price', 'is', null)
       .gt('unit_price', 0)
       .gt('total', 0)
       .then(({ data }) => {
         if (!data) return
-        const map: Record<string, { category: string; prices: PriceEntry[] }> = {}
+        const map: Record<string, { display_name: string; category: string; prices: PriceEntry[] }> = {}
         data.forEach((l: any) => {
           if (!l.item_name || !l.unit_price) return
           const date = l.invoice_headers?.invoice_date
           if (!date) return
-          if (!map[l.item_name]) map[l.item_name] = { category: l.category || 'Other', prices: [] }
+          if (!map[l.item_name]) map[l.item_name] = { display_name: l.display_name || l.item_name, category: l.category || 'Other', prices: [] }
           map[l.item_name].prices.push({ invoice_date: date, unit_price: l.unit_price, unit_qty: l.unit_qty ?? 0, case_qty: l.case_qty ?? 0 })
         })
 
         const tracked: TrackedItem[] = Object.entries(map)
           .filter(([, v]) => v.prices.length >= 2)
-          .map(([item_name, { category, prices }]) => {
+          .map(([item_name, { display_name, category, prices }]) => {
             const sorted = prices.sort((a, b) => a.invoice_date.localeCompare(b.invoice_date))
             const current = sorted[sorted.length - 1].unit_price
             const previous = sorted[sorted.length - 2].unit_price
             const change = ((current - previous) / previous) * 100
             const last = sorted[sorted.length - 1]
             const unit = (last.unit_qty ?? 0) > 1 ? '/lb' : (last.case_qty ?? 0) > 0 ? '/case' : '/unit'
-            return { item_name, category, prices: sorted, current, previous, change, unit }
+            return { item_name, display_name, category, prices: sorted, current, previous, change, unit }
           })
           .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
 
@@ -96,7 +96,7 @@ export default function PriceTrackerPage() {
               <tr><td colSpan={6} className="text-center py-8 text-gray-400">No price data available.</td></tr>
             ) : filtered.map(item => (
               <tr key={item.item_name} className="border-b last:border-0 hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium text-gray-900">{item.item_name}</td>
+                <td className="px-4 py-3 font-medium text-gray-900">{item.display_name}</td>
                 <td className="px-4 py-3">
                   <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">{item.category}</span>
                 </td>
