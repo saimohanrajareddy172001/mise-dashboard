@@ -24,3 +24,14 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@media print {
+  aside, nav, button, .print\:hidden { display: none !important; }
+  main { overflow: visible !important; }
+  body { background: white; }
+  .print\:border-0 { border: none !important; }
+  .print\:p-0 { padding: 0 !important; }
+  .print\:p-4 { padding: 1rem !important; }
+  .print\:mb-4 { margin-bottom: 1rem !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

@@ -3,11 +3,12 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { LayoutDashboard, FileText, ShoppingCart, TrendingUp, LogOut, Search } from 'lucide-react'
+import { LayoutDashboard, FileText, ShoppingCart, TrendingUp, LogOut, Search, UploadCloud } from 'lucide-react'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/invoices', label: 'Invoices', icon: FileText },
+  { href: '/dashboard/upload', label: 'Upload Invoice', icon: UploadCloud },
   { href: '/dashboard/most-purchased', label: 'Most Purchased', icon: ShoppingCart },
   { href: '/dashboard/price-tracker', label: 'Price Tracker', icon: TrendingUp },
   { href: '/dashboard/search', label: 'Item Search', icon: Search },
@@ -48,7 +49,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               key={href}
               href={href}
               className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition ${
-                pathname === href ? 'bg-amber-500 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                (href === '/dashboard' ? pathname === href : pathname.startsWith(href))
+                  ? 'bg-amber-500 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'
               }`}
             >
               <Icon size={16} />
