@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { Search } from 'lucide-react'
 
 type LineResult = {
+  id: string
   item_name: string
   display_name: string
   category: string
@@ -35,18 +36,26 @@ export default function SearchPage() {
     if (!restaurantId || !query.trim()) return
     setLoading(true)
     setSearched(true)
+    const q = query.trim()
     const { data } = await supabase
       .from('invoice_lines')
-      .select('item_name, display_name, category, unit_price, unit_qty, case_qty, total, invoice_date, invoice_headers!header_id(invoice_number, vendor)')
+      .select('id, item_name, display_name, category, unit_price, unit_qty, case_qty, total, invoice_date, invoice_headers!header_id(invoice_number, vendor)')
       .eq('restaurant_id', restaurantId)
-      .ilike('item_name', `%${query.trim()}%`)
+      .or(`item_name.ilike.%${q}%,display_name.ilike.%${q}%`)
       .gt('total', 0)
       .order('invoice_date', { ascending: false })
       .limit(200)
     if (data) {
       setResults(data.map((r: any) => ({
-        ...r,
+        id: r.id,
+        item_name: r.item_name,
         display_name: r.display_name || r.item_name,
+        category: r.category,
+        unit_price: r.unit_price,
+        unit_qty: r.unit_qty,
+        case_qty: r.case_qty,
+        total: r.total,
+        invoice_date: r.invoice_date,
         invoice_number: r.invoice_headers?.invoice_number ?? '',
         vendor: r.invoice_headers?.vendor ?? '',
       })))
@@ -112,8 +121,8 @@ export default function SearchPage() {
               </tr>
             </thead>
             <tbody>
-              {results.map((r, i) => (
-                <tr key={i} className="border-b last:border-0 hover:bg-gray-50">
+              {results.map((r) => (
+                <tr key={r.id} className="border-b last:border-0 hover:bg-gray-50">
                   <td className="px-4 py-3 text-gray-500">{r.invoice_date}</td>
                   <td className="px-4 py-3 text-gray-600">#{r.invoice_number}</td>
                   <td className="px-4 py-3 font-medium text-gray-900">{r.display_name}</td>

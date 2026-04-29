@@ -54,7 +54,9 @@ export default function InvoicesPage() {
     const csv = rows.map(r => r.map((v: any) => `"${v ?? ''}"`).join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob)
-    a.download = `invoices-${new Date().toISOString().split('T')[0]}.csv`; a.click()
+    const d = new Date()
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    a.download = `invoices-${dateStr}.csv`; a.click()
   }
 
   return (

@@ -85,34 +85,27 @@ export default function DashboardPage() {
     setInvoiceCount(headers.length)
     setRecentInvoices(headers.slice(0, 8))
 
-    const prev = getPrevDateRange()
-    if (prev && prev.start && prev.end) {
-      const { data: prevHeaders } = await supabase
-        .from('invoice_headers')
-        .select('total')
-        .eq('restaurant_id', restaurantId)
-        .gte('invoice_date', prev.start)
-        .lte('invoice_date', prev.end)
-      setPrevSpend(prevHeaders ? prevHeaders.reduce((s, h) => s + (h.total || 0), 0) : null)
-    } else {
-      setPrevSpend(null)
-    }
-
     const headerIds = headers.map(h => h.id)
-    if (headerIds.length > 0) {
-      const { data: lines } = await supabase
-        .from('invoice_lines')
-        .select('category, total')
-        .in('header_id', headerIds)
+    const prev = getPrevDateRange()
 
-      if (lines) {
-        const catMap: Record<string, number> = {}
-        lines.forEach(l => { catMap[l.category || 'Other'] = (catMap[l.category || 'Other'] || 0) + (l.total || 0) })
-        const sorted = Object.entries(catMap).sort((a, b) => b[1] - a[1])
-        setCategoryData(sorted.map(([category, total]) => ({ category, total: Math.round(total * 100) / 100 })))
-        setTopCategory(sorted[0]?.[0] || '-')
-      }
+    const [linesResult, prevResult] = await Promise.all([
+      headerIds.length > 0
+        ? supabase.from('invoice_lines').select('category, total').in('header_id', headerIds)
+        : Promise.resolve({ data: null }),
+      prev?.start && prev?.end
+        ? supabase.from('invoice_headers').select('total').eq('restaurant_id', restaurantId).gte('invoice_date', prev.start).lte('invoice_date', prev.end)
+        : Promise.resolve({ data: null }),
+    ])
+
+    if (linesResult.data) {
+      const catMap: Record<string, number> = {}
+      linesResult.data.forEach((l: any) => { catMap[l.category || 'Other'] = (catMap[l.category || 'Other'] || 0) + (l.total || 0) })
+      const sorted = Object.entries(catMap).sort((a, b) => b[1] - a[1])
+      setCategoryData(sorted.map(([category, total]) => ({ category, total: Math.round(total * 100) / 100 })))
+      setTopCategory(sorted[0]?.[0] || '-')
     }
+
+    setPrevSpend(prevResult.data ? prevResult.data.reduce((s: number, h: any) => s + (h.total || 0), 0) : null)
   }
 
   return (

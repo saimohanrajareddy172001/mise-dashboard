@@ -21,6 +21,8 @@ export default function MostPurchasedPage() {
     if (!restaurantId) return
     supabase.from('invoice_lines').select('item_name, display_name, category, unit_qty, case_qty, total')
       .eq('restaurant_id', restaurantId)
+      .gt('total', 0)
+      .limit(5000)
       .then(({ data }) => {
         if (!data) return
         const map: Record<string, Item> = {}
