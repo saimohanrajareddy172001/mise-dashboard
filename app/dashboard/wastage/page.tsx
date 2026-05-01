@@ -139,7 +139,7 @@ export default function WastagePage() {
             <BarChart data={data}>
               <XAxis dataKey="category" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `$${v}`} />
-              <Tooltip formatter={(v: number | string) => `$${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
+              <Tooltip formatter={(v) => `$${Number(v ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
               <Legend />
               <Bar dataKey="purchased" name="Purchased" fill="#F59E0B" radius={[4, 4, 0, 0]} />
               {cloverConnected && <Bar dataKey="sold" name="Sold (COGS)" fill="#10B981" radius={[4, 4, 0, 0]} />}
