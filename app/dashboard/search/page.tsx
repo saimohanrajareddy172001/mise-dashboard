@@ -1,6 +1,7 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useRestaurant } from '@/lib/restaurant'
 import { Search } from 'lucide-react'
 
 type LineResult = {
@@ -18,19 +19,12 @@ type LineResult = {
 }
 
 export default function SearchPage() {
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
+  const { current } = useRestaurant()
+  const restaurantId = current?.id ?? null
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<LineResult[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
-
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) return
-      const { data: profile } = await supabase.from('profiles').select('restaurant_id').eq('id', data.user.id).single()
-      if (profile) setRestaurantId(profile.restaurant_id)
-    })
-  }, [])
 
   async function search() {
     if (!restaurantId || !query.trim()) return

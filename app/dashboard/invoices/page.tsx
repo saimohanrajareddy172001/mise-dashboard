@@ -2,24 +2,18 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useRestaurant } from '@/lib/restaurant'
 import { Search, Download } from 'lucide-react'
 
 type Invoice = { id: string; invoice_date: string; invoice_number: string; vendor: string; total: number }
 
 export default function InvoicesPage() {
   const router = useRouter()
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
+  const { current } = useRestaurant()
+  const restaurantId = current?.id ?? null
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) return
-      const { data: profile } = await supabase.from('profiles').select('restaurant_id').eq('id', data.user.id).single()
-      if (profile) setRestaurantId(profile.restaurant_id)
-    })
-  }, [])
 
   useEffect(() => {
     if (!restaurantId) return

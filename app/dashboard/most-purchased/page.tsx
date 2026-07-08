@@ -1,21 +1,15 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useRestaurant } from '@/lib/restaurant'
 
 type Item = { item_name: string; display_name: string; category: string; total_qty: number; total_spend: number; times_ordered: number }
 
 export default function MostPurchasedPage() {
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
+  const { current } = useRestaurant()
+  const restaurantId = current?.id ?? null
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) return
-      const { data: profile } = await supabase.from('profiles').select('restaurant_id').eq('id', data.user.id).single()
-      if (profile) setRestaurantId(profile.restaurant_id)
-    })
-  }, [])
 
   useEffect(() => {
     if (!restaurantId) return

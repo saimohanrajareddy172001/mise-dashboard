@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useRestaurant } from '@/lib/restaurant'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { Link2, AlertTriangle } from 'lucide-react'
 
@@ -11,7 +12,8 @@ function localDate(d: Date) {
 }
 
 export default function WastagePage() {
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
+  const { current } = useRestaurant()
+  const restaurantId = current?.id ?? null
   const [cloverConnected, setCloverConnected] = useState(false)
   const [range, setRange] = useState<'weekly' | 'monthly'>('monthly')
   const [data, setData] = useState<CategoryRow[]>([])
@@ -20,60 +22,56 @@ export default function WastagePage() {
   const [totalSold, setTotalSold] = useState<number | null>(null)
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: auth }) => {
-      if (!auth.user) return
-      const { data: profile } = await supabase.from('profiles').select('restaurant_id').eq('id', auth.user.id).single()
-      if (profile) setRestaurantId(profile.restaurant_id)
-    })
-  }, [])
-
-  useEffect(() => {
     if (!restaurantId) return
-    loadData()
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      const now = new Date()
+      let start: string, end: string
+      if (range === 'weekly') {
+        const s = new Date(now); s.setDate(now.getDate() - 7)
+        start = localDate(s); end = localDate(now)
+      } else {
+        start = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+        end = localDate(now)
+      }
+
+      const [linesRes, salesRes] = await Promise.all([
+        supabase.from('invoice_lines').select('category, total').eq('restaurant_id', restaurantId).gte('invoice_date', start).lte('invoice_date', end).gt('total', 0),
+        supabase.from('pos_sales').select('category, revenue').eq('restaurant_id', restaurantId).gte('sale_date', start).lte('sale_date', end),
+      ])
+
+      if (cancelled) return
+
+      const hasSales = !salesRes.error && salesRes.data && salesRes.data.length > 0
+      setCloverConnected(hasSales || false)
+
+      const purchaseMap: Record<string, number> = {}
+      for (const l of linesRes.data || []) {
+        const cat = l.category || 'Other'
+        purchaseMap[cat] = (purchaseMap[cat] || 0) + (l.total || 0)
+      }
+
+      const salesMap: Record<string, number> = {}
+      for (const s of salesRes.data || []) {
+        const cat = s.category || 'Other'
+        salesMap[cat] = (salesMap[cat] || 0) + (s.revenue || 0)
+      }
+
+      const cats = [...new Set([...Object.keys(purchaseMap), ...Object.keys(salesMap)])]
+      const rows: CategoryRow[] = cats
+        .map(cat => ({ category: cat, purchased: purchaseMap[cat] || 0, sold: hasSales ? (salesMap[cat] || 0) : null }))
+        .sort((a, b) => b.purchased - a.purchased)
+
+      setData(rows)
+      setTotalPurchased(rows.reduce((s, r) => s + r.purchased, 0))
+      setTotalSold(hasSales ? rows.reduce((s, r) => s + (r.sold || 0), 0) : null)
+      setLoading(false)
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [restaurantId, range])
-
-  async function loadData() {
-    setLoading(true)
-    const now = new Date()
-    let start: string, end: string
-    if (range === 'weekly') {
-      const s = new Date(now); s.setDate(now.getDate() - 7)
-      start = localDate(s); end = localDate(now)
-    } else {
-      start = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
-      end = localDate(now)
-    }
-
-    const [linesRes, salesRes] = await Promise.all([
-      supabase.from('invoice_lines').select('category, total').eq('restaurant_id', restaurantId).gte('invoice_date', start).lte('invoice_date', end).gt('total', 0),
-      supabase.from('pos_sales').select('category, revenue').eq('restaurant_id', restaurantId).gte('sale_date', start).lte('sale_date', end),
-    ])
-
-    const hasSales = !salesRes.error && salesRes.data && salesRes.data.length > 0
-    setCloverConnected(hasSales || false)
-
-    const purchaseMap: Record<string, number> = {}
-    for (const l of linesRes.data || []) {
-      const cat = l.category || 'Other'
-      purchaseMap[cat] = (purchaseMap[cat] || 0) + (l.total || 0)
-    }
-
-    const salesMap: Record<string, number> = {}
-    for (const s of salesRes.data || []) {
-      const cat = s.category || 'Other'
-      salesMap[cat] = (salesMap[cat] || 0) + (s.revenue || 0)
-    }
-
-    const cats = [...new Set([...Object.keys(purchaseMap), ...Object.keys(salesMap)])]
-    const rows: CategoryRow[] = cats
-      .map(cat => ({ category: cat, purchased: purchaseMap[cat] || 0, sold: hasSales ? (salesMap[cat] || 0) : null }))
-      .sort((a, b) => b.purchased - a.purchased)
-
-    setData(rows)
-    setTotalPurchased(rows.reduce((s, r) => s + r.purchased, 0))
-    setTotalSold(hasSales ? rows.reduce((s, r) => s + (r.sold || 0), 0) : null)
-    setLoading(false)
-  }
 
   const wasteEstimate = totalSold !== null ? totalPurchased - totalSold : null
 

@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useRestaurant } from '@/lib/restaurant'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { DollarSign, TrendingUp, ShoppingBag } from 'lucide-react'
 
@@ -8,7 +9,8 @@ type CategorySpend = { category: string; total: number }
 type RecentInvoice = { id: string; invoice_date: string; invoice_number: string; vendor: string; total: number }
 
 export default function DashboardPage() {
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
+  const { current } = useRestaurant()
+  const restaurantId = current?.id ?? null
   const [range, setRange] = useState<'weekly' | 'monthly' | 'custom'>('monthly')
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
@@ -18,18 +20,6 @@ export default function DashboardPage() {
   const [topCategory, setTopCategory] = useState('-')
   const [categoryData, setCategoryData] = useState<CategorySpend[]>([])
   const [recentInvoices, setRecentInvoices] = useState<RecentInvoice[]>([])
-
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) return
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('restaurant_id')
-        .eq('id', data.user.id)
-        .single()
-      if (profile) setRestaurantId(profile.restaurant_id)
-    })
-  }, [])
 
   useEffect(() => {
     if (!restaurantId) return

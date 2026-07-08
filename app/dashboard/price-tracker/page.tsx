@@ -1,24 +1,18 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useRestaurant } from '@/lib/restaurant'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
 type PriceEntry = { invoice_date: string; unit_price: number; unit_qty: number; case_qty: number }
 type TrackedItem = { item_name: string; display_name: string; category: string; prices: PriceEntry[]; current: number; previous: number; change: number; unit: string }
 
 export default function PriceTrackerPage() {
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
+  const { current } = useRestaurant()
+  const restaurantId = current?.id ?? null
   const [items, setItems] = useState<TrackedItem[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'up' | 'down'>('all')
-
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) return
-      const { data: profile } = await supabase.from('profiles').select('restaurant_id').eq('id', data.user.id).single()
-      if (profile) setRestaurantId(profile.restaurant_id)
-    })
-  }, [])
 
   useEffect(() => {
     if (!restaurantId) return

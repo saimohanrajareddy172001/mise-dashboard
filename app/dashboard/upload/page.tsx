@@ -1,6 +1,7 @@
 'use client'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useRestaurant } from '@/lib/restaurant'
 import { Upload, FileText, CheckCircle, AlertCircle, Download, X } from 'lucide-react'
 
 type ParsedItem = {
@@ -45,7 +46,8 @@ function downloadCSVTemplate() {
 }
 
 export default function UploadPage() {
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
+  const { current } = useRestaurant()
+  const restaurantId = current?.id ?? null
   const [dragging, setDragging] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [status, setStatus] = useState<'idle' | 'parsing' | 'done' | 'saving' | 'saved' | 'error'>('idle')
@@ -53,14 +55,6 @@ export default function UploadPage() {
   const [parsed, setParsed] = useState<ParsedInvoice | null>(null)
   const [savedId, setSavedId] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) return
-      const { data: profile } = await supabase.from('profiles').select('restaurant_id').eq('id', data.user.id).single()
-      if (profile) setRestaurantId(profile.restaurant_id)
-    })
-  }, [])
 
   function reset() {
     setFile(null); setParsed(null); setStatus('idle'); setErrorMsg(''); setSavedId(null)
@@ -90,10 +84,29 @@ export default function UploadPage() {
     if (!parsed || !restaurantId) return
     setStatus('saving')
     try {
+      // Register the upload in invoice_files so the AI Automation page counts it.
+      // drive_file_id is UNIQUE NOT NULL; synthesize one since uploads don't go through Drive.
+      const { data: fileRow, error: fErr } = await supabase
+        .from('invoice_files')
+        .insert({
+          restaurant_id: restaurantId,
+          drive_file_id: `upload-${crypto.randomUUID()}`,
+          filename: file?.name ?? 'manual-upload',
+          file_date: parsed.invoice_date,
+          file_total: parsed.total ?? parsed.items.reduce((s, i) => s + (i.total || 0), 0),
+          status: 'done',
+          source: 'upload',
+          processed_at: new Date().toISOString(),
+        })
+        .select('id')
+        .single()
+      if (fErr || !fileRow) throw new Error(fErr?.message || 'Failed to register file')
+
       const { data: header, error: hErr } = await supabase
         .from('invoice_headers')
         .insert({
           restaurant_id: restaurantId,
+          file_id: fileRow.id,
           vendor: parsed.vendor || 'Unknown',
           invoice_number: parsed.invoice_number,
           invoice_date: parsed.invoice_date,
