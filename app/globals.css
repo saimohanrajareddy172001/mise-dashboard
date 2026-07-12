@@ -8,8 +8,24 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  /* mise design system fonts (Claude Design handoff) */
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-plex-mono);
+  --font-serif: var(--font-instrument-serif);
+
+  /* mise brand palette — shared foundation for landing / login / dashboard */
+  --color-cream: #f7f3ed;
+  --color-cream-surface: #fffdf9;
+  --color-cream-surface-alt: #fdfbf6;
+  --color-ink: #1a1713;
+  --color-ink-2: #4a453d;
+  --color-ink-3: #6b6459;
+  --color-ink-muted: #8a8377;
+  --color-terracotta: #c4642d;
+  --color-terracotta-hover: #d97742;
+  --color-forest: #1e3a2f;
+  --color-forest-light: #a9c4b4;
 }
 
 @media (prefers-color-scheme: dark) {

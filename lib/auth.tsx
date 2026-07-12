@@ -17,6 +17,18 @@ const AuthContext = createContext<Ctx>({
   signOut: async () => {},
 })
 
+// Public routes — viewable without authentication (marketing landing + auth
+// flows + auth callbacks). Everything else requires a session.
+// (Static assets like /_next/*, /favicon.ico are served by Next directly and
+// never reach this client provider, so they don't need to be listed here.)
+const PUBLIC_ROUTES = ['/', '/login', '/signup', '/forgot-password']
+const PUBLIC_PREFIXES = ['/auth', '/api/webhooks']
+
+function isPublicRoute(pathname: string): boolean {
+  if (PUBLIC_ROUTES.includes(pathname)) return true
+  return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'))
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -34,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (loading) return
-    if (!session && pathname !== '/login') router.replace('/login')
+    if (!session && !isPublicRoute(pathname)) router.replace('/login')
     if (session && pathname === '/login') router.replace('/dashboard')
   }, [session, loading, pathname, router])
 
