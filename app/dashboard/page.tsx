@@ -1,9 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useRestaurant } from '@/lib/restaurant'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { DollarSign, TrendingUp, ShoppingBag } from 'lucide-react'
+import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
 type CategorySpend = { category: string; total: number }
 type RecentInvoice = { id: string; invoice_date: string; invoice_number: string; vendor: string; total: number }
@@ -98,99 +98,169 @@ export default function DashboardPage() {
     setPrevSpend(prevResult.data ? prevResult.data.reduce((s: number, h: any) => s + (h.total || 0), 0) : null)
   }
 
+  // ---- Presentation-only derived values (no new data) ----
+  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+  const avgPerInvoice = invoiceCount ? totalSpend / invoiceCount : 0
+  const hasTrend = prevSpend !== null && prevSpend > 0
+  const trendPct = hasTrend ? ((totalSpend - prevSpend!) / prevSpend!) * 100 : 0
+  const trendUp = totalSpend > (prevSpend ?? 0)
+
+  const rangePill = (active: boolean) =>
+    `rounded-full px-4 py-1.5 text-[13px] font-medium capitalize transition ${
+      active
+        ? 'bg-forest text-cream'
+        : 'border border-ink/[0.12] bg-cream-surface text-ink-3 hover:bg-cream-surface-alt'
+    }`
+
   return (
     <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-500 text-sm">Spend, categories, and recent invoices at a glance.</p>
-        </div>
-        <div className="flex gap-2">
-          {(['weekly', 'monthly'] as const).map(r => (
-            <button key={r} onClick={() => setRange(r)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition ${range === r ? 'bg-amber-500 text-white' : 'bg-white border text-gray-600 hover:bg-gray-50'}`}>
-              {r}
-            </button>
-          ))}
-          <button onClick={() => setRange('custom')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${range === 'custom' ? 'bg-amber-500 text-white' : 'bg-white border text-gray-600 hover:bg-gray-50'}`}>
-            Custom
+      {/* Range controls (drive the existing queries) */}
+      <div className="mb-5 flex flex-wrap items-center justify-end gap-2">
+        {(['weekly', 'monthly'] as const).map(r => (
+          <button key={r} onClick={() => setRange(r)} className={rangePill(range === r)}>
+            {r}
           </button>
-        </div>
+        ))}
+        <button onClick={() => setRange('custom')} className={rangePill(range === 'custom')}>
+          Custom
+        </button>
       </div>
 
       {range === 'custom' && (
-        <div className="flex gap-3 mb-6">
+        <div className="mb-5 flex flex-wrap items-center justify-end gap-3">
           <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-            className="border rounded-lg px-3 py-2 text-sm text-gray-700" />
-          <span className="text-gray-400 self-center">to</span>
+            className="rounded-[9px] border border-ink/[0.16] bg-cream-surface px-3 py-2 text-sm text-ink-2 outline-none focus:border-terracotta" />
+          <span className="text-ink-muted">to</span>
           <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-            className="border rounded-lg px-3 py-2 text-sm text-gray-700" />
+            className="rounded-[9px] border border-ink/[0.16] bg-cream-surface px-3 py-2 text-sm text-ink-2 outline-none focus:border-terracotta" />
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="bg-white rounded-xl border p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <DollarSign size={16} className="text-amber-500" />
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Total Spend</span>
-          </div>
-          <div className="text-2xl font-bold text-gray-900">${totalSpend.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-xs text-gray-400">{invoiceCount} invoices</span>
-            {prevSpend !== null && prevSpend > 0 && (
-              <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${totalSpend > prevSpend ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-600'}`}>
-                {totalSpend > prevSpend ? '+' : ''}{(((totalSpend - prevSpend) / prevSpend) * 100).toFixed(1)}% vs prev
-              </span>
-            )}
-          </div>
-        </div>
-        {[
-          { label: 'Avg per Invoice', value: invoiceCount ? `$${(totalSpend / invoiceCount).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '$0.00', sub: 'this period', icon: TrendingUp },
-          { label: 'Top Category', value: topCategory, sub: 'by spend', icon: ShoppingBag },
-        ].map(({ label, value, sub, icon: Icon }) => (
-          <div key={label} className="bg-white rounded-xl border p-5">
-            <div className="flex items-center gap-2 text-amber-500 mb-3">
-              <Icon size={16} />
-              <span className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</span>
+      {/* KPI CARDS — real data */}
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-[14px] border border-ink/[0.08] bg-cream-surface p-[22px]">
+          <div className="text-[12.5px] tracking-[0.02em] text-ink-muted">Total spend this period</div>
+          <div className="mt-2 font-mono text-[30px] font-semibold text-ink">{money(totalSpend)}</div>
+          {hasTrend ? (
+            <div className={`mt-2 font-mono text-[13px] ${trendUp ? 'text-terracotta' : 'text-forest'}`}>
+              {trendUp ? '↑' : '↓'} {Math.abs(trendPct).toFixed(1)}% vs prev
             </div>
-            <div className="text-2xl font-bold text-gray-900">{value}</div>
-            <div className="text-xs text-gray-400 mt-1">{sub}</div>
-          </div>
-        ))}
+          ) : (
+            <div className="mt-2 font-mono text-[13px] text-ink-muted">no prior period</div>
+          )}
+        </div>
+
+        <div className="rounded-[14px] border border-ink/[0.08] bg-cream-surface p-[22px]">
+          <div className="text-[12.5px] tracking-[0.02em] text-ink-muted">Avg per invoice</div>
+          <div className="mt-2 font-mono text-[30px] font-semibold text-ink">{money(avgPerInvoice)}</div>
+          <div className="mt-2 font-mono text-[13px] text-ink-muted">this period</div>
+        </div>
+
+        <div className="rounded-[14px] border border-ink/[0.08] bg-cream-surface p-[22px]">
+          <div className="text-[12.5px] tracking-[0.02em] text-ink-muted">Invoices parsed</div>
+          <div className="mt-2 font-mono text-[30px] font-semibold text-ink">{invoiceCount}</div>
+          <div className="mt-2 font-mono text-[13px] text-ink-muted">in selected range</div>
+        </div>
+
+        <div className="rounded-[14px] border border-ink/[0.08] bg-cream-surface p-[22px]">
+          <div className="text-[12.5px] tracking-[0.02em] text-ink-muted">Top category</div>
+          <div className="mt-2 truncate font-serif text-[28px] text-ink">{topCategory}</div>
+          <div className="mt-2 font-mono text-[13px] text-ink-muted">by spend</div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-xl border p-5">
-          <h2 className="font-semibold text-gray-800 mb-4">Spend by Category</h2>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={categoryData}>
-              <XAxis dataKey="category" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(v) => `$${Number(v).toLocaleString()}`} />
-              <Bar dataKey="total" fill="#F59E0B" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+      {/* CHART — same query + data, restyled palette */}
+      <div className="mb-6 rounded-[14px] border border-ink/[0.08] bg-cream-surface p-6">
+        <div className="mb-4">
+          <h2 className="font-serif text-[22px] text-ink">Spend by category</h2>
+          <p className="mt-1 text-[13px] text-ink-muted">
+            Category breakdown coming soon — auto-categorization in progress
+          </p>
+        </div>
+        {categoryData.length === 0 ? (
+          <div className="flex h-[240px] min-h-[240px] items-center justify-center text-[13px] text-ink-muted">
+            No category data in this range.
+          </div>
+        ) : (
+          // Hard-capped height: recharts v3 ResponsiveContainer otherwise overshoots
+          // (SVG grows the box → re-measure). min/max + inline height lock it at 240.
+          <div className="h-[240px] min-h-[240px] w-full" style={{ height: 240, maxHeight: 240 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={categoryData} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+                <XAxis
+                  dataKey="category"
+                  tick={{ fontSize: 11, fontFamily: 'var(--font-plex-mono)', fill: '#8A8377' }}
+                  tickLine={false}
+                  axisLine={{ stroke: 'rgba(26,23,19,0.1)' }}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fontFamily: 'var(--font-plex-mono)', fill: '#8A8377' }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip
+                  formatter={(v) => `$${Number(v).toLocaleString()}`}
+                  cursor={{ fill: 'rgba(30,58,47,0.06)' }}
+                  contentStyle={{
+                    borderRadius: 10,
+                    border: '1px solid rgba(26,23,19,0.1)',
+                    background: '#FFFDF9',
+                    fontFamily: 'var(--font-plex-mono)',
+                    fontSize: 12,
+                  }}
+                />
+                <Bar dataKey="total" radius={[6, 6, 0, 0]}>
+                  {categoryData.map((_, i) => (
+                    // Highlight the top (largest) category in terracotta; rest forest green.
+                    <Cell key={i} fill={i === 0 ? '#C4642D' : '#1E3A2F'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      {/* RECENT INVOICES + ALERTS */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[3fr_2fr]">
+        <div className="rounded-[14px] border border-ink/[0.08] bg-cream-surface p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-serif text-[22px] text-ink">Recent invoices</h2>
+            <Link href="/dashboard/invoices" className="text-[13px] font-medium text-terracotta hover:text-terracotta-hover">
+              View all →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-[80px_1fr_auto] border-b border-ink/[0.08] pb-2 text-[11px] uppercase tracking-[0.06em] text-ink-muted">
+            <span>Date</span>
+            <span>Vendor</span>
+            <span className="text-right">Amount</span>
+          </div>
+          {recentInvoices.length === 0 ? (
+            <p className="py-6 text-center text-[13px] text-ink-muted">No invoices in this range.</p>
+          ) : (
+            recentInvoices.map(inv => (
+              <div
+                key={inv.id}
+                className="grid grid-cols-[80px_1fr_auto] items-center border-b border-ink/[0.05] py-3 text-[14px] last:border-0"
+              >
+                <span className="font-mono text-[12px] text-ink-3">{inv.invoice_date}</span>
+                <span className="min-w-0 pr-3">
+                  <span className="block truncate text-ink">{inv.vendor}</span>
+                  <span className="block truncate font-mono text-[11px] text-ink-muted">#{inv.invoice_number}</span>
+                </span>
+                <span className="text-right font-mono text-ink">{money(Number(inv.total))}</span>
+              </div>
+            ))
+          )}
         </div>
 
-        <div className="bg-white rounded-xl border p-5">
-          <h2 className="font-semibold text-gray-800 mb-4">Recent Invoices</h2>
-          <table className="w-full text-sm">
-            <thead><tr className="text-gray-400 text-xs border-b">
-              <th className="text-left pb-2">Date</th>
-              <th className="text-left pb-2">Invoice #</th>
-              <th className="text-right pb-2">Total</th>
-            </tr></thead>
-            <tbody>
-              {recentInvoices.map(inv => (
-                <tr key={inv.id} className="border-b last:border-0">
-                  <td className="py-2 text-gray-600">{inv.invoice_date}</td>
-                  <td className="py-2 text-gray-800">#{inv.invoice_number}</td>
-                  <td className="py-2 text-right font-medium text-gray-900">${Number(inv.total).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex flex-col rounded-[14px] border border-ink/[0.08] bg-cream-surface p-6">
+          <h2 className="mb-4 font-serif text-[22px] text-ink">Active alerts</h2>
+          <div className="flex flex-1 flex-col items-center justify-center py-10 text-center">
+            <div className="text-[15px] font-semibold text-ink">No active alerts</div>
+            <div className="mt-1 text-[13px] text-ink-muted">Coming soon</div>
+          </div>
         </div>
       </div>
     </div>

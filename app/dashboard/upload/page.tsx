@@ -25,13 +25,14 @@ type ParsedInvoice = {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  Protein: 'bg-red-100 text-red-700',
+  Proteins: 'bg-red-100 text-red-700',
   Produce: 'bg-green-100 text-green-700',
   Dairy: 'bg-blue-100 text-blue-700',
   'Dry Goods': 'bg-yellow-100 text-yellow-700',
-  Frozen: 'bg-indigo-100 text-indigo-700',
   Beverages: 'bg-cyan-100 text-cyan-700',
-  Supplies: 'bg-gray-100 text-gray-600',
+  Packaging: 'bg-gray-100 text-gray-600',
+  Cleaning: 'bg-teal-100 text-teal-700',
+  Credits: 'bg-rose-100 text-rose-700',
   Other: 'bg-amber-100 text-amber-700',
 }
 

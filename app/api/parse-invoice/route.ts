@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { categorize } from '@/lib/categorize'
 
 const SYSTEM_PROMPT = `You are an invoice parser. Extract all line items from the invoice and return ONLY valid JSON.
 
@@ -29,18 +30,6 @@ Rules:
 - Credits and returns should have negative total values
 - If quantity is missing assume 1
 - All numbers as floats, no currency symbols`
-
-function categorize(name: string): string {
-  const n = name.toUpperCase()
-  if (/^FZ\b/.test(n)) return 'Frozen'
-  if (/\b(CONT\b|FOIL|BAG\b|GLOVE|TOWEL|BLEACH|PINE.?SOL|CUP\b|LID\b|LINER|WRAP|NAPKIN|SOAP|SANITIZER|SPONGE|CHARMIN|GRILL.?BRICK|STRAW)\b/.test(n)) return 'Supplies'
-  if (/^(PROD|PD)\b|\b(BROCCOLI|CAULIFLOWER|CILANTRO|CUCUMBER|CELERY|ZUCCHINI|TOMATILLO|MANGO|LIME|LEMON|BERRY|BERRIES|SPINACH|GINGER|MUSHROOM|TOMATO|CARROT|ONION|GARLIC|PEPPER|LETTUCE|ARUGULA|KALE|CABBAGE|AVOCADO|EGGPLANT)\b/.test(n)) return 'Produce'
-  if (/\b(CHIX|CHICKEN|LAMB|BEEF|PORK|SHR|SHRIMP|TILAPIA|POMPANO|SALMON|TUNA|FISH|WING|HALAL|TURKEY|DUCK|VEAL|LOBSTER|CRAB|SCALLOP)\b/.test(n)) return 'Protein'
-  if (/\b(CREAM|MILK|MLK|BUTTER|BTR|YOG|YOGURT|CHEESE|CHS|PANEER|DAHI|EGG)\b/.test(n)) return 'Dairy'
-  if (/^BIB\b|\b(LEMONADE|PURE.?LIFE|WATER|SODA|JUICE|COFFEE|TEA)\b/.test(n)) return 'Beverages'
-  if (/\b(OIL|FLOUR|SUGAR|STARCH|RICE|SALT|BASMATI|BEAN|PUREE|SAUCE|KETCHUP|SRIRACHA|SPICE|GARBANZO|CORN|EVAP|VINEGAR|MAYO|MUSTARD|SOY|SEASONING|BREAD|BRD|PASTA|NOODLE|LENTIL|CHICKPEA)\b/.test(n)) return 'Dry Goods'
-  return 'Other'
-}
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.ANTHROPIC_API_KEY
